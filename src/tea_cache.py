@@ -446,9 +446,12 @@ class TeaCache:
             and self.enable
         )
 
-    def set_range(self, max_skip_step: int, min_skip_step: int = 0):
+    def set_range(
+        self, max_skip_step: int, min_skip_step: int = 0, threshold: float = 0
+    ):
         self.max_skip_step = max_skip_step
         self.min_skip_step = min_skip_step
+        self.rel_l1_threshold = threshold
 
     def do_solver(self):
         return not self.speedup_mode and self.enable and self.solver is not None
