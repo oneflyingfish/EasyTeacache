@@ -391,6 +391,7 @@ class TeaCache:
         self,
         max_skip_step: int,
         min_skip_step: int = 0,
+        max_consecutive_skip: int = 2,
         threshold: float = 0.0,
         configs: TeaCacheConfig | List[TeaCacheConfig] = None,
         model_keys: str | List[str] = None,
@@ -407,6 +408,7 @@ class TeaCache:
         self.rel_l1_threshold = threshold
         self.max_skip_step = max_skip_step
         self.min_skip_step = min_skip_step
+        self.max_consecutive_skip = max_consecutive_skip
 
         if isinstance(configs, TeaCacheConfig):
             configs = [configs]
@@ -425,6 +427,7 @@ class TeaCache:
                 )
 
         self.pre_step = -float("inf")
+        self.previous_calc_step = -float("inf")
         self.previous_residual = None  # type:torch.Tensor
         self.previous_t_mod = None  # type:torch.Tensor
         self.cache_l1_distance = (0, 0.0)
@@ -458,11 +461,18 @@ class TeaCache:
         )
 
     def set_range(
-        self, max_skip_step: int, min_skip_step: int = 0, threshold: float = 0
+        self,
+        max_skip_step: int,
+        min_skip_step: int = 0,
+        threshold: float = 0,
+        max_consecutive_skip: int = None,
     ):
         self.max_skip_step = max_skip_step
         self.min_skip_step = min_skip_step
         self.rel_l1_threshold = threshold
+
+        if max_consecutive_skip is not None:
+            self.max_consecutive_skip = max_consecutive_skip
 
     def do_solver(self):
         return not self.speedup_mode and self.enable and self.solver is not None
@@ -482,6 +492,7 @@ class TeaCache:
             step < self.min_skip_step
             or step > self.max_skip_step
             or self.pre_step + 1 != step
+            or (step - self.previous_calc_step) > self.max_consecutive_skip
         ):
             return False
 
@@ -534,6 +545,7 @@ class TeaCache:
         self.sum_l1_distance = 0.0
         self.previous_t_mod = t_mod
         self.pre_step = step
+        self.previous_calc_step = step
         self.cache_l1_distance = (0, 0.0)
 
     def update(self, t_mod: torch.Tensor, input_latent: torch.Tensor):
