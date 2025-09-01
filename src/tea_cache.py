@@ -434,6 +434,17 @@ class TeaCache:
         else:
             self.solver = None
 
+        self.skip_steps_sum = 0
+        self.calc_steps_sum = 0
+
+    def current_speedup_rate(self) -> float:
+        if self.skip_steps_sum + self.calc_steps_sum < 1:
+            return 1
+        elif self.calc_steps_sum < 1:
+            return float("inf")
+        else:
+            return (self.skip_steps_sum + self.calc_steps_sum) / self.calc_steps_sum
+
     def config(self, sequence_length) -> TeaCacheConfig:
         return min(self.configs, key=lambda x: x.matching_rate(sequence_length))
 
@@ -513,6 +524,12 @@ class TeaCache:
         if not self.do_speed():
             return None
 
+        if step == 0:
+            self.skip_steps_sum = 0
+            self.calc_steps_sum = 1
+        else:
+            self.calc_steps_sum += 1
+
         self.previous_residual = output_latent - input_latent
         self.sum_l1_distance = 0.0
         self.previous_t_mod = t_mod
@@ -532,5 +549,7 @@ class TeaCache:
         self.cache_l1_distance = (0, 0.0)
         self.previous_t_mod = t_mod
         output_latent = input_latent + self.previous_residual
+
+        self.skip_steps_sum += 1
 
         return output_latent
