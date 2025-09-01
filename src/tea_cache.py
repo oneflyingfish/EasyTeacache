@@ -548,6 +548,16 @@ class TeaCache:
         self.previous_calc_step = step
         self.cache_l1_distance = (0, 0.0)
 
+    def clear_cache(self):
+        assert self.speedup_mode, "only speedup mode support clear cache"
+        
+        self.sum_l1_distance = 0.0
+        self.pre_step = -float("inf")
+        self.previous_calc_step = -float("inf")
+        self.previous_residual = None  # type:torch.Tensor
+        self.previous_t_mod = None  # type:torch.Tensor
+        self.cache_l1_distance = (0, 0.0)
+
     def update(self, t_mod: torch.Tensor, input_latent: torch.Tensor):
         if not self.do_speed():
             return input_latent
