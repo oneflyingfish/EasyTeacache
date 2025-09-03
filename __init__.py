@@ -1,1 +1,1 @@
-from .src.tea_cache import TeaCacheConfig, TeaCacheSolver, TeaCacheSolvers, TeaCache
+from .src.teacache.tea_cache import TeaCacheConfig, TeaCacheSolver, TeaCacheSolvers, TeaCache

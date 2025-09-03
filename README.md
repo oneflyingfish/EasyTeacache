@@ -100,3 +100,9 @@ else:
         )
 ```
 
+# Reference
+
+> During the implementation of this project, we referred to the methods in the papers as well as possible open-source projects (either officially released or by third parties). However, there might still be some modifications. This could be due to the unclear or non-public nature of some methods, or because I considered them to be effective improvements.
+
+* TeaCache: https://arxiv.org/html/2411.19108v2
+* FoCa: https://arxiv.org/html/2508.16211v1
