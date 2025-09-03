@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from typing import Tuple, List, Dict
 from collections import deque
-from so_predictor import SOPredictor
+from .so_predictor import SOPredictor
 
 
 class TeaCacheConfig:
