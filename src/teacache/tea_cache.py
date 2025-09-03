@@ -399,7 +399,7 @@ class TeaCache:
         cache_path="config/teacache/cache.json",
         speedup_mode=True,
         enable: bool = True,
-        enable_vt_predictor=True,
+        enable_vt_predictor=False,
     ):
         self.cache_path = cache_path
         self.model_keys = model_keys if isinstance(model_keys, list) else [model_keys]
@@ -547,7 +547,10 @@ class TeaCache:
 
         # self.previous_residual = output_latent - input_latent
         self.latent_predictor.store_value(
-            input_latent=input_latent, output_latent=output_latent, timestep=timestep
+            step=step,
+            input_latent=input_latent,
+            output_latent=output_latent,
+            timestep=timestep,
         )
         self.sum_l1_distance = 0.0
         self.previous_t_mod = t_mod
@@ -584,11 +587,18 @@ class TeaCache:
         self.previous_t_mod = t_mod
         # output_latent = input_latent + self.previous_residual
 
-        valid, output_latent = self.latent_predictor.predict(
+        _, output_latent = self.latent_predictor.predict(
             input_latent=input_latent, timestep=timestep
         )
-        assert valid, "bad to predict latent call by teacache"
+        assert output_latent is not None, "bad to predict latent call by teacache"
 
         self.skip_steps_sum += 1
+
+        self.latent_predictor.store_value(
+            step=self.pre_step,
+            input_latent=input_latent,
+            output_latent=output_latent,
+            timestep=timestep,
+        )
 
         return output_latent
