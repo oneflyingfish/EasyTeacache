@@ -392,6 +392,7 @@ class TeaCache:
         self,
         max_skip_step: int,
         min_skip_step: int = 0,
+        max_consecutive_skip: int = 2,
         threshold: float = 0.0,
         configs: TeaCacheConfig | List[TeaCacheConfig] = None,
         model_keys: str | List[str] = None,
@@ -409,6 +410,7 @@ class TeaCache:
         self.rel_l1_threshold = threshold
         self.max_skip_step = max_skip_step
         self.min_skip_step = min_skip_step
+        self.max_consecutive_skip = max_consecutive_skip
 
         if isinstance(configs, TeaCacheConfig):
             configs = [configs]
@@ -427,16 +429,27 @@ class TeaCache:
                 )
 
         self.pre_step = -float("inf")
+        self.previous_calc_step = -float("inf")
         # self.previous_residual = None  # type:torch.Tensor
+        self.latent_predictor = SOPredictor(max_cache=(2 if enable_vt_predictor else 1))
         self.previous_t_mod = None  # type:torch.Tensor
         self.cache_l1_distance = (0, 0.0)
-
-        self.latent_predictor = SOPredictor(max_cache=(2 if enable_vt_predictor else 1))
 
         if not self.speedup_mode:
             self.solver = TeaCacheSolvers()
         else:
             self.solver = None
+
+        self.skip_steps_sum = 0
+        self.calc_steps_sum = 0
+
+    def current_speedup_rate(self) -> float:
+        if self.skip_steps_sum + self.calc_steps_sum < 1:
+            return 1
+        elif self.calc_steps_sum < 1:
+            return float("inf")
+        else:
+            return (self.skip_steps_sum + self.calc_steps_sum) / self.calc_steps_sum
 
     def config(self, sequence_length) -> TeaCacheConfig:
         return min(self.configs, key=lambda x: x.matching_rate(sequence_length))
@@ -450,9 +463,19 @@ class TeaCache:
             and self.enable
         )
 
-    def set_range(self, max_skip_step: int, min_skip_step: int = 0):
+    def set_range(
+        self,
+        max_skip_step: int,
+        min_skip_step: int = 0,
+        threshold: float = 0,
+        max_consecutive_skip: int = None,
+    ):
         self.max_skip_step = max_skip_step
         self.min_skip_step = min_skip_step
+        self.rel_l1_threshold = threshold
+
+        if max_consecutive_skip is not None:
+            self.max_consecutive_skip = max_consecutive_skip
 
     def do_solver(self):
         return not self.speedup_mode and self.enable and self.solver is not None
@@ -472,6 +495,7 @@ class TeaCache:
             step < self.min_skip_step
             or step > self.max_skip_step
             or self.pre_step + 1 != step
+            or (step - self.previous_calc_step) > self.max_consecutive_skip
         ):
             return False
 
@@ -515,14 +539,30 @@ class TeaCache:
         if not self.do_speed():
             return None
 
+        if step == 0:
+            self.skip_steps_sum = 0
+            self.calc_steps_sum = 1
+        else:
+            self.calc_steps_sum += 1
+
         # self.previous_residual = output_latent - input_latent
         self.latent_predictor.store_value(
             input_latent=input_latent, output_latent=output_latent, timestep=timestep
         )
-
         self.sum_l1_distance = 0.0
         self.previous_t_mod = t_mod
         self.pre_step = step
+        self.previous_calc_step = step
+        self.cache_l1_distance = (0, 0.0)
+
+    def clear_cache(self):
+        assert self.speedup_mode, "only speedup mode support clear cache"
+
+        self.sum_l1_distance = 0.0
+        self.pre_step = -float("inf")
+        self.previous_calc_step = -float("inf")
+        self.previous_residual = None  # type:torch.Tensor
+        self.previous_t_mod = None  # type:torch.Tensor
         self.cache_l1_distance = (0, 0.0)
 
     def update(
@@ -548,5 +588,7 @@ class TeaCache:
             input_latent=input_latent, timestep=timestep
         )
         assert valid, "bad to predict latent call by teacache"
+
+        self.skip_steps_sum += 1
 
         return output_latent
