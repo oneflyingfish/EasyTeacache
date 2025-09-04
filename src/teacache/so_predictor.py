@@ -4,7 +4,7 @@ from typing import Tuple
 
 
 class SOPredictor:
-    def __init__(self, max_cache=2):
+    def __init__(self, max_cache=1):
         self.vt_cache = deque(maxlen=max_cache)
 
     def store_value(
@@ -26,6 +26,8 @@ class SOPredictor:
         timestep = timestep.view(*timestep.shape, *([1] * (input_latent.ndim - 1))).to(
             input_latent.dtype
         )
+
+        print(step, len(self.vt_cache))
         self.vt_cache.append((step, (output_latent - input_latent) / timestep))
 
     def predict(
@@ -48,7 +50,6 @@ class SOPredictor:
         elif len(self.vt_cache) == 1:
             return False, input_latent + self.vt_cache[-1][1] * timestep
         else:
-            return True, (
-                input_latent
-                + (2 * self.vt_cache[-1][1] - self.vt_cache[-2][1]) * timestep
-            )
+            return True, input_latent + (
+                self.vt_cache[-1][1] + self.vt_cache[-2][1]
+            ) * (timestep / 2)
