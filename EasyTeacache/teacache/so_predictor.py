@@ -26,8 +26,6 @@ class SOPredictor:
         timestep = timestep.view(*timestep.shape, *([1] * (input_latent.ndim - 1))).to(
             input_latent.dtype
         )
-
-        print(step, len(self.vt_cache))
         self.vt_cache.append((step, (output_latent - input_latent) / timestep))
 
     def predict(

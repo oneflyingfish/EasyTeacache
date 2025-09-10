@@ -1,4 +1,4 @@
-from .src.teacache.tea_cache import (
+from .teacache.tea_cache import (
     TeaCacheConfig,
     TeaCacheSolver,
     TeaCacheSolvers,
