@@ -4,3 +4,5 @@ from .teacache.tea_cache import (
     TeaCacheSolvers,
     TeaCache,
 )
+
+from .fdb_cache.fdb_cache import FDBTeaCache
